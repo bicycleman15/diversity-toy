@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from omegaconf import DictConfig, OmegaConf
-from metric_logger import Logger
+# from metric_logger import Logger
 
 hlog = logging.getLogger(__name__)
 
@@ -280,7 +280,7 @@ def pretrain_policy_to_reference(
     reference_policy: DummyReferencePolicy,
     cfg: DictConfig,
     device: torch.device,
-    logger: Logger,
+    # logger: Logger,
 ):
     """
     Pre-trains the policy model to match the reference policy.
@@ -344,7 +344,7 @@ def pretrain_policy_to_reference(
                     "pretrain/rev_kl_ref": rev_kl_ref.item(),
                     "pretrain/step": step,
                 }
-            logger.log(metrics, step=0)
+            # logger.log(metrics, step=0)
 
     hlog.info("Finished pre-training.")
     return policy_model
@@ -486,7 +486,7 @@ def compute_pg_loss(data: Dict[str, torch.Tensor], policy_model: nn.Module,
 
 
 
-@hydra.main(config_path=".", config_name="toy_categorical.yaml")
+@hydra.main(config_path=".", config_name="toy_config.yaml")
 def main(CFG: DictConfig):
     # Resolve config
     CFG = OmegaConf.to_container(CFG, resolve=True)
@@ -505,10 +505,10 @@ def main(CFG: DictConfig):
     hlog.info(f"Experiment directory: {exp_dir}")
     
     # Initialize logger
-    logger = Logger(
-        log_dir=exp_dir,
-        use_wb=False,
-    )
+    # logger = Logger(
+    #     log_dir=exp_dir,
+    #     use_wb=False,
+    # )
     
     # Initialize models
     policy_model = DecoderOnlyTransformer(
@@ -548,7 +548,7 @@ def main(CFG: DictConfig):
             reference_policy=reference_policy,
             cfg=CFG,
             device=device,
-            logger=logger,
+            # logger=logger,
         )
     
     # Training loop
@@ -636,7 +636,7 @@ def main(CFG: DictConfig):
             metrics["rev_kl_to_ref"] = rev_kl_ref.item()
         
         # Log metrics using the logger
-        logger.log(metrics, step=iteration)
+        # logger.log(metrics, step=iteration)
         
         # Print key metrics
         """
@@ -679,7 +679,7 @@ def main(CFG: DictConfig):
     hlog.info("Training completed!")
     
     # Finish logging
-    logger.finish()
+    # logger.finish()
 
 
 if __name__ == "__main__":

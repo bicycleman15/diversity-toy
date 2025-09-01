@@ -46,9 +46,9 @@ save_policy_marginal: True  # Optionally save marginalized policy distribution i
 # Config searchpath follows example from: https://github.com/facebookresearch/hydra/tree/main/examples/advanced/config_search_path
 hydra:
   run:
-    dir: /scratch/agc9824/project_outputs/nano-aha/${now:%Y.%m.%d}/test_${now:%H%M%S}
+    dir: /gpfs/data/ranganathlab/Jatin/diversity/results/${now:%Y.%m.%d}/test_${now:%H%M%S}
   sweep:
-    dir: /scratch/agc9824/project_outputs/nano-aha/${now:%Y.%m.%d}/${now:%H%M%S}
+    dir: /gpfs/data/ranganathlab/Jatin/diversity/results/${now:%Y.%m.%d}/${now:%H%M%S}
     subdir: ${hydra.job.num}
   job:
     chdir: True  # let hydra change runtime cwd (default False for >=1.2)
