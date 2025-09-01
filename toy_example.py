@@ -728,5 +728,23 @@ def main(CFG: DictConfig):
     plt.close()
     hlog.info(f"Saved final policy distribution plot to: {exp_dir / 'final_policy_distribution.png'}")
 
+    # now dump the path and some hyperparams to a csv file
+    # hyperparams to write: seed, kl_coeff, entropy_coeff, reward_type, exp_dir / 'final_policy_distribution.png'
+    # append to the csv file if it exists, else create it
+    csv_path = Path("/gpfs/data/ranganathlab/Jatin/diversity") / "toy_example_results.csv"
+    print(csv_path)
+
+    header = "seed,kl_grad_type,kl_coeff,entropy_coeff,reward_type,final_policy_plot_path\n"
+    row = f"{CFG.seed},{CFG.loss_cfg.kl_grad_type},{CFG.kl_coeff},{CFG.entropy_coeff},{CFG.reward_type},{exp_dir / 'final_policy_distribution.png'}\n"
+    if not os.path.exists(csv_path):
+        with open(csv_path, "w") as f:
+            f.write(header)
+            f.write(row)
+    else:
+        with open(csv_path, "a") as f:
+            f.write(row)
+    print(row)
+
+
 if __name__ == "__main__":
     main() 
