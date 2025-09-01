@@ -4,6 +4,8 @@ from functools import partial
 from pathlib import Path
 from typing import Dict, Tuple
 
+import matplotlib.pyplot as plt
+
 import hydra
 import numpy as np
 import einops
@@ -529,7 +531,10 @@ def main(CFG: DictConfig):
     # Initialize logger
     logger = Logger(
         log_dir=exp_dir,
-        use_wb=True,
+        use_wb=False,
+
+        # wb_name=CFG.logger.wb_name,
+        # wb_cfg=CFG
     )
     
     # Initialize models
@@ -707,6 +712,21 @@ def main(CFG: DictConfig):
     # Finish logging
     logger.finish()
 
+    # give the final logits
+    final_logits = policy_model.logits.detach().cpu()
+    hlog.info(f"Final policy logits: {final_logits.numpy()}")
+    hlog.info(f"Final policy probs: {F.softmax(final_logits, dim=-1).numpy()}")
+
+    # plot the final policy probs
+    plt.figure(figsize=(8, 4))
+    plt.bar(np.arange(CFG.vocab_size), F.softmax(final_logits, dim=-1).numpy())
+    plt.xlabel("Token Index")
+    plt.ylabel("Probability")
+    plt.title("Final Policy Token Distribution")
+    plt.grid(True)
+    plt.savefig(exp_dir / "final_policy_distribution.png")
+    plt.close()
+    hlog.info(f"Saved final policy distribution plot to: {exp_dir / 'final_policy_distribution.png'}")
 
 if __name__ == "__main__":
     main() 
