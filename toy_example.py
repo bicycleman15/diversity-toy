@@ -6,25 +6,25 @@ from typing import Dict, Tuple
 
 import hydra
 import numpy as np
+import einops
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from omegaconf import DictConfig, OmegaConf
-# from metric_logger import Logger
+from metric_logger import Logger
 
 hlog = logging.getLogger(__name__)
 
 
 def set_seed(seed: int):
-        """Set random seed for reproducibility"""
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-        np.random.seed(seed)
-        # random.seed(seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-
+    """Set random seed for reproducibility"""
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    # random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 class DecoderOnlyTransformer(nn.Module):
     """A simple decoder-only transformer for language modeling."""
@@ -83,6 +83,28 @@ class DecoderOnlyTransformer(nn.Module):
         
         # Project to logits
         logits = self.output_proj(decoded)
+        return logits
+    
+
+class CategoricalPolicy(nn.Module):
+    """A simple policy that is parameterized as a categorical distribution over actions."""
+    
+    def __init__(self, vocab_size: int, init_logit_value: float = 0.0):
+        super().__init__()
+        self.vocab_size = vocab_size
+        # Logits parameter for the categorical distribution
+        self.logits = nn.Parameter(torch.ones(vocab_size) * init_logit_value)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: [batch_size, seq_len] - input tokens (ignored)
+        
+        Returns:
+            log_probs: [batch_size, vocab_size] - log probabilities for next token
+        """
+        batch_size = x.shape[0]
+        logits = einops.repeat(self.logits, "v -> b v", b=batch_size)  # [batch_size, vocab_size]
         return logits
 
 
@@ -280,7 +302,7 @@ def pretrain_policy_to_reference(
     reference_policy: DummyReferencePolicy,
     cfg: DictConfig,
     device: torch.device,
-    # logger: Logger,
+    logger: Logger,
 ):
     """
     Pre-trains the policy model to match the reference policy.
@@ -344,7 +366,7 @@ def pretrain_policy_to_reference(
                     "pretrain/rev_kl_ref": rev_kl_ref.item(),
                     "pretrain/step": step,
                 }
-            # logger.log(metrics, step=0)
+            logger.log(metrics, step=0)
 
     hlog.info("Finished pre-training.")
     return policy_model
@@ -505,17 +527,21 @@ def main(CFG: DictConfig):
     hlog.info(f"Experiment directory: {exp_dir}")
     
     # Initialize logger
-    # logger = Logger(
-    #     log_dir=exp_dir,
-    #     use_wb=False,
-    # )
+    logger = Logger(
+        log_dir=exp_dir,
+        use_wb=True,
+    )
     
     # Initialize models
-    policy_model = DecoderOnlyTransformer(
+    # policy_model = DecoderOnlyTransformer(
+    #     vocab_size=CFG.vocab_size,
+    #     d_model=CFG.d_model,
+    #     n_heads=CFG.n_heads,
+    #     n_layers=CFG.n_layers
+    # ).to(device)
+    policy_model = CategoricalPolicy(
         vocab_size=CFG.vocab_size,
-        d_model=CFG.d_model,
-        n_heads=CFG.n_heads,
-        n_layers=CFG.n_layers
+        init_logit_value=CFG.policy_init_logit_value,
     ).to(device)
     
     # Dummy reference policy for KL regularization
@@ -548,7 +574,7 @@ def main(CFG: DictConfig):
             reference_policy=reference_policy,
             cfg=CFG,
             device=device,
-            # logger=logger,
+            logger=logger,
         )
     
     # Training loop
@@ -569,7 +595,7 @@ def main(CFG: DictConfig):
             input_tokens = torch.randint(0, CFG.vocab_size, (batch_size, 1)).to(device)
             
             # Get policy logits for the next token
-            policy_logits = policy_model(input_tokens)  # [batch_size, 1, vocab_size]
+            policy_logits = policy_model(input_tokens)  # [batch_size, 1]
             policy_logits = policy_logits.squeeze(1)  # [batch_size, vocab_size]
             
             # Sample actions from policy
@@ -636,7 +662,7 @@ def main(CFG: DictConfig):
             metrics["rev_kl_to_ref"] = rev_kl_ref.item()
         
         # Log metrics using the logger
-        # logger.log(metrics, step=iteration)
+        logger.log(metrics, step=iteration)
         
         # Print key metrics
         """
@@ -679,7 +705,7 @@ def main(CFG: DictConfig):
     hlog.info("Training completed!")
     
     # Finish logging
-    # logger.finish()
+    logger.finish()
 
 
 if __name__ == "__main__":

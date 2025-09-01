@@ -4,6 +4,8 @@ d_model: 128
 n_heads: 4
 n_layers: 2
 
+policy_init_logit_value: 0.0  # Initial logit value for the categorical policy
+
 device: cuda
 
 ref_pol_eps: 1e-10 
